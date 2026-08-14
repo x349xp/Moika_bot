@@ -1,0 +1,10 @@
+version: '3.8'
+services:
+  bot:
+    build: .
+    container_name: telegram-bot
+    restart: unless-stopped
+    volumes:
+      - ./carwash.db:/app/carwash.db
+    environment:
+      - BOT_TOKEN=${BOT_TOKEN}
