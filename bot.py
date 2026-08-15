@@ -43,7 +43,7 @@ async def game_loop(bot: Bot):
 async def main():
     await db.init_db()
 
-    bot = Bot(token=config.BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
+    bot = Bot(token=config.BOT_TOKEN, session=config.session, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
     dp = Dispatcher()
 
     dp.include_router(start.router)

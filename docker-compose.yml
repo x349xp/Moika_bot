@@ -8,3 +8,4 @@ services:
       - ./carwash.db:/app/carwash.db
     environment:
       - BOT_TOKEN=${BOT_TOKEN}
+      - PROXY_URL=${PROXY_URL}

@@ -1,9 +1,13 @@
 import os
 from dotenv import load_dotenv
+from aiogram.client.session.aiohttp import AiohttpSession
 
 load_dotenv()
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 DB_PATH = os.getenv("DB_PATH", "carwash.db")
+PROXY_URL = os.getenv("PROXY_URL")
+
+session = AiohttpSession(proxy=PROXY_URL)
 
 # как часто крутится глобальный игровой тик (сек)
 TICK_INTERVAL = 60
