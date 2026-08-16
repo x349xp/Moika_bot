@@ -288,6 +288,9 @@ async def update_status_message(bot, user_id: int, results, income, daily):
     if not lines:
         return
 
+    timestamp = time.strftime("%H:%M:%S")
+    lines.append(f"\n🕒 Обновлено: {timestamp}")
+
     text = "\n".join(lines)
     message_id = _last_status_message.get(user_id)
 
