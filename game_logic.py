@@ -7,6 +7,7 @@ import config
 import db
 
 logger = logging.getLogger("carwash.game")
+_last_status_message: dict[int, int] = {}  # user_id -> message_id последнего статус-сообщения
 
 
 def roll_payout(service_type: str, quality: float, reputation: float, multiplier: float = 1.0) -> float:
@@ -271,10 +272,10 @@ async def process_user_tick(db_conn, user_id: int, bot=None):
     await db_conn.commit()
 
     if bot and (results or daily):
-        await send_tick_notifications(bot, user_id, results, income, daily)
+        await update_status_message(bot, user_id, results, income, daily)
 
 
-async def send_tick_notifications(bot, user_id: int, results, income, daily):
+async def update_status_message(bot, user_id: int, results, income, daily):
     lines = []
     if results:
         lines.append(f"✅ Обслужено клиентов: {len(results)}, доход +{round(income,1)}💰")
@@ -284,8 +285,21 @@ async def send_tick_notifications(bot, user_id: int, results, income, daily):
     if daily:
         lines.extend(daily["lines"])
 
-    if lines:
+    if not lines:
+        return
+
+    text = "\n".join(lines)
+    message_id = _last_status_message.get(user_id)
+
+    if message_id:
         try:
-            await bot.send_message(user_id, "\n".join(lines))
+            await bot.edit_message_text(chat_id=user_id, message_id=message_id, text=text)
+            return
         except Exception as e:
-            logger.warning(f"Не удалось отправить уведомление {user_id}: {e}")
+            logger.info(f"Не удалось отредактировать статус {user_id}: {e}")
+
+    try:
+        msg = await bot.send_message(user_id, text)
+        _last_status_message[user_id] = msg.message_id
+    except Exception as e:
+        logger.warning(f"Не удалось отправить статус {user_id}: {e}")
