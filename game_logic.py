@@ -7,8 +7,16 @@ import config
 import db
 
 logger = logging.getLogger("carwash.game")
-_last_status_message: dict[int, int] = {}  # user_id -> message_id последнего статус-сообщения
+_last_status_message: dict[int, int] = {}
+_event_history: dict[int, list] = {}  # user_id -> [(timestamp, text), ...]
 
+def relative_time(ts: float) -> str:
+    diff = int(time.time() - ts)
+    if diff < 60:
+        return "только что"
+    if diff < 3600:
+        return f"{diff // 60} мин назад"
+    return f"{diff // 3600} ч назад"
 
 def roll_payout(service_type: str, quality: float, reputation: float, multiplier: float = 1.0) -> float:
     svc = config.SERVICES[service_type]
@@ -274,26 +282,27 @@ async def process_user_tick(db_conn, user_id: int, bot=None):
     if bot and (results or daily):
         await update_status_message(bot, user_id, results, income, daily)
 
-
 async def update_status_message(bot, user_id: int, results, income, daily):
-    lines = []
+    new_lines = []
     if results:
-        lines.append(f"✅ Обслужено клиентов: {len(results)}, доход +{round(income,1)}💰")
+        new_lines.append(f"✅ Обслужено клиентов: {len(results)}, доход +{round(income,1)}💰")
         complaints = [r for r in results if r["complaint"]]
         if complaints:
-            lines.append(f"😡 Жалоб: {len(complaints)}")
+            new_lines.append(f"😡 Жалоб: {len(complaints)}")
     if daily:
-        lines.extend(daily["lines"])
+        new_lines.extend(daily["lines"])
 
-    if not lines:
+    if not new_lines:
         return
 
-    timestamp = time.strftime("%H:%M:%S")
-    lines.append(f"\n🕒 Обновлено: {timestamp}")
+    now = time.time()
+    history = _event_history.setdefault(user_id, [])
+    history.append((now, "\n".join(new_lines)))
+    _event_history[user_id] = history[-3:]  # оставляем только последние 3
 
-    text = "\n".join(lines)
+    text = "\n\n".join(f"🕒 {relative_time(ts)}\n{t}" for ts, t in _event_history[user_id])
+
     message_id = _last_status_message.get(user_id)
-
     if message_id:
         try:
             await bot.edit_message_text(chat_id=user_id, message_id=message_id, text=text)
